@@ -1,0 +1,101 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 2em;
+    background: #f5f6fa;
+    color: #222;
+}
+
+h1 {
+    color: #0066cc;
+    text-align: center;
+    margin-top: 1.5em;
+}
+
+#auth-section, #voting-section, #results-section {
+    margin-top: 2em;
+    background: #fff;
+    padding: 2em;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.home-container {
+    margin: 4em auto 0 auto;
+    background: #fff;
+    padding: 3em 2em 2em 2em;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    max-width: 500px;
+    text-align: center;
+}
+
+.home-container p {
+    font-size: 1.2em;
+    margin-bottom: 2em;
+    color: #333;
+}
+
+.home-container button {
+    padding: 1em 2.5em;
+    font-size: 1.2em;
+    background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.12);
+    transition: background 0.2s, transform 0.2s;
+}
+
+.home-container button:hover {
+    background: linear-gradient(90deg, #005fa3 70%, #009ec3 100%);
+    transform: translateY(-2px) scale(1.04);
+}
+
+a[style*="float:right"] {
+    text-decoration: none;
+    color: #0066cc;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+form {
+    margin-bottom: 1em;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"] {
+    padding: 0.5em;
+    margin: 0.5em 0;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #d1d9e6;
+    background: #f7f8fa;
+    font-size: 1em;
+}
+
+button {
+    padding: 0.5em 1.5em;
+    color: #fff;
+    background: #0066cc;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5em;
+}
+
+button:hover {
+    background: #0055a3;
+}
+
+.vote-message {
+    margin-top: 0.5em;
+    color: green;
+}

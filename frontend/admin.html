@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; background: #f0f2f4; }
+    .container { max-width: 900px; margin: 24px auto; background: #fff; border-radius: 10px; box-shadow: 0 4px 24px rgba(25,118,210,0.07); padding: 32px; }
+    h1 { color: #1976d2; text-align: center; }
+    h2 { color: #115293; margin-top: 30px; }
+    form, .section { margin-top: 16px; }
+    label { display: block; margin-top: 12px; }
+    input, textarea, select { width: 100%; padding: 7px; margin-top: 2px; border-radius: 6px; border: 1px solid #bbb; }
+    button { background: #1976d2; color: #fff; border: none; border-radius: 6px; padding: 10px 18px; margin-top: 13px; cursor: pointer; font-size: 1em; }
+    button:hover { background: #115293; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { border: 1px solid #e0e0e0; padding: 9px 7px; text-align: left; }
+    th { background: #f5f7fa; color: #115293; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .export-btn { background: #43a047; color: #fff; border: none; border-radius: 8px; padding: 7px 18px; float: right; margin-bottom: 14px; font-size: .97em; cursor: pointer; }
+    .export-btn:hover { background: #2e7031; }
+    .inline-btn { margin-left: 6px; font-size: .95em; padding: 6px 10px; }
+    #login-section { max-width:400px;margin:50px auto;display:block; }
+    #login-error { color:red;margin-top:10px; }
+    #logout-btn { background:#bbb; color:#222; float:right; margin-top:-40px; }
+    #logout-btn:hover { background:#888; }
+  </style>
+</head>
+<body>
+  <!-- Login Section -->
+  <div id="login-section">
+    <h2>Admin Login</h2>
+    <form id="login-form">
+      <label>Username <input type="text" id="login-username" required autocomplete="username"></label>
+      <label>Password <input type="password" id="login-password" required autocomplete="current-password"></label>
+      <button type="submit">Login</button>
+    </form>
+    <div id="login-error"></div>
+  </div>
+
+  <!-- Admin Panel Section (hidden by default) -->
+  <div class="container" id="admin-panel" style="display:none;">
+    <button id="logout-btn" onclick="logout()">Logout</button>
+    <h1>Admin Panel</h1>
+
+    <!-- Section 1: Election Management -->
+    <h2>Election Management</h2>
+    <form id="election-form">
+      <input type="hidden" id="election-id">
+      <label>Election Title <input type="text" id="election-title" required></label>
+      <label>Description <textarea id="election-description"></textarea></label>
+      <label>Candidates (comma-separated) <input type="text" id="election-candidates" required></label>
+      <button type="submit" id="election-submit-btn">Create Election</button>
+      <button type="button" id="election-reset-btn" style="background:#bbb; color:#222; margin-left:8px;">Reset</button>
+    </form>
+    <div class="section">
+      <h3>Existing Elections</h3>
+      <table id="elections-table">
+        <thead>
+          <tr><th>Title</th><th>Description</th><th>Candidates</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Section 2: Login Logs and Results -->
+    <h2>User Login Timeline / Export</h2>
+    <button class="export-btn" onclick="exportLoginLogs()">Export Logins as CSV</button>
+    <table id="login-logs-table">
+      <thead>
+        <tr><th>Username</th><th>Login Time</th><th>IP Address</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>Modify Results (Manual Vote Injection/Correction)</h2>
+    <label for="results-election-list">Choose Election</label>
+    <select id="results-election-list"></select>
+    <form id="results-form">
+      <label>Candidate <input type="text" id="results-candidate" required></label>
+      <label>Votes to Add/Set <input type="number" id="results-count" required></label>
+      <button type="submit">Update Votes</button>
+    </form>
+    <div id="results-update-status"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let isAdmin = false;
+
+    // --- ADMIN LOGIN ---
+    document.getElementById('login-form').onsubmit = async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      const errorDiv = document.getElementById('login-error');
+      errorDiv.textContent = '';
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorDiv.textContent = data.error || 'Login failed. Check username or password.';
+          return;
+        }
+        if (data.isAdmin) {
+          isAdmin = true;
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('admin-panel').style.display = 'block';
+          loadElections();
+          fetchLoginLogs();
+        } else {
+          errorDiv.textContent = 'Not an admin account.';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Unable to connect to server.';
+      }
+    };
+
+    function logout() {
+      isAdmin = false;
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('login-form').reset();
+      document.getElementById('login-error').textContent = '';
+    }
+
+    // --- ELECTION MANAGEMENT ---
+    function loadElections() {
+      fetch(`${API_BASE}/voting/elections`)
+        .then(res => res.json())
+        .then(elections => {
+          const tbody = document.getElementById('elections-table').querySelector('tbody');
+          tbody.innerHTML = '';
+          elections.forEach(e => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${e.title}</td>
+                            <td>${e.description || ''}</td>
+                            <td>${(e.candidates || []).join(', ')}</td>
+                            <td>
+                              <button class="inline-btn" onclick="editElection(${e.id}, '${e.title.replace(/'/g,"\\'")}', '${(e.description||'').replace(/'/g,"\\'")}', '${(e.candidates||[]).join(',').replace(/'/g,"\\'")}')">Edit</button>
+                              <button class="inline-btn" style="background:#d32f2f;" onclick="deleteElection(${e.id})">Delete</button>
+                            </td>`;
+            tbody.appendChild(tr);
+          });
+          populateResultsElectionList(elections);
+        });
+    }
+    function resetElectionForm() {
+      document.getElementById('election-id').value = '';
+      document.getElementById('election-title').value = '';
+      document.getElementById('election-description').value = '';
+      document.getElementById('election-candidates').value = '';
+      document.getElementById('election-submit-btn').textContent = 'Create Election';
+    }
+    document.getElementById('election-reset-btn').onclick = resetElectionForm;
+
+    document.getElementById('election-form').onsubmit = function(e) {
+      e.preventDefault();
+      const id = document.getElementById('election-id').value;
+      const title = document.getElementById('election-title').value;
+      const description = document.getElementById('election-description').value;
+      const candidates = document.getElementById('election-candidates').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `${API_BASE}/voting/elections/${id}` : `${API_BASE}/voting/elections`;
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, candidates })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Election request failed");
+        return res.json();
+      })
+      .then(() => { resetElectionForm(); loadElections(); })
+      .catch(err => alert('Election operation failed.'));
+    };
+    function editElection(id, title, description, candidates) {
+      document.getElementById('election-id').value = id;
+      document.getElementById('election-title').value = title;
+      document.getElementById('election-description').value = description;
+      document.getElementById('election-candidates').value = candidates;
+      document.getElementById('election-submit-btn').textContent = 'Update Election';
+    }
+    function deleteElection(id) {
+      if (confirm('Delete this election?')) {
+        fetch(`${API_BASE}/voting/elections/${id}`, { method: 'DELETE' })
+          .then(() => loadElections());
+      }
+    }
+
+    // --- LOGIN LOGS ---
+    function fetchLoginLogs() {
+      fetch(`${API_BASE}/voting/admin/login-logs`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById('login-logs-table').querySelector('tbody');
+          tbody.innerHTML = '';
+          data.logs.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${log.username}</td><td>${log.login_time}</td><td>${log.ip_address || ''}</td>`;
+            tbody.appendChild(tr);
+          });
+        });
+    }
+    function exportLoginLogs() {
+      window.open(`${API_BASE}/voting/admin/login-logs/export`, '_blank');
+    }
+
+    // --- MODIFY RESULTS ---
+    function populateResultsElectionList(elections) {
+      const sel = document.getElementById('results-election-list');
+      sel.innerHTML = '';
+      elections.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = e.title;
+        sel.appendChild(opt);
+      });
+    }
+    document.getElementById('results-form').onsubmit = function(e) {
+      e.preventDefault();
+      const electionId = document.getElementById('results-election-list').value;
+      const candidate = document.getElementById('results-candidate').value;
+      const count = parseInt(document.getElementById('results-count').value);
+      fetch(`${API_BASE}/admin/results/manual-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ electionId, candidate, count })
+      })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('results-update-status').textContent = data.success ? "Votes updated." : ("Error: " + (data.message || ''));
+        });
+    };
+  </script>
+</body>
+</html>
+
